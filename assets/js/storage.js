@@ -1,23 +1,75 @@
 (function(){
-  const DB='everest-td-v2', STORE='kv', STATE='state', CH='everest-td-sync-v2';
-  let dbp=null; const listeners=new Set(); let channel=null;
-  function openDB(){ if(dbp) return dbp; dbp=new Promise((resolve,reject)=>{ const r=indexedDB.open(DB,1); r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE)}; r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error);}); return dbp; }
-  async function idbGet(key){ const db=await openDB(); return new Promise((res,rej)=>{const t=db.transaction(STORE,'readonly'),r=t.objectStore(STORE).get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}); }
-  async function idbSet(key,val){ const db=await openDB(); return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(val,key);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error('IndexedDB aborted'))}); }
-  async function idbDel(key){ const db=await openDB(); return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).delete(key);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)}); }
-  async function load(){ try{const x=await idbGet(STATE);if(x)return x}catch(e){} try{const raw=localStorage.getItem('everest-td-state-lite');return raw?JSON.parse(raw):null}catch(e){return null} }
-  function lite(s){return {version:s.version,updatedAt:s.updatedAt,tournament:s.tournament,timer:s.timer,counts:s.counts,finance:s.finance,blinds:s.blinds,payouts:s.payouts,display:s.display,settings:s.settings,history:(s.history||[]).slice(-20)}}
-  async function save(state,{broadcast=true}={}){ state.updatedAt=Date.now(); let mode='indexeddb'; try{await idbSet(STATE,state)}catch(e){mode='memory';}
-    try{localStorage.setItem('everest-td-state-lite',JSON.stringify(lite(state)))}catch(e){}
-    if(broadcast&&channel){try{channel.postMessage({type:'state',state})}catch(e){}}
+  const DB_NAME='everest-td-v3';
+  const STORE='kv';
+  const STATE_KEY='state';
+  const FALLBACK='everest-td-state-v3-lite';
+  const CHANNEL='everest-td-sync-v3';
+  let dbPromise=null;
+  let channel=null;
+  const stateListeners=new Set();
+  const mediaListeners=new Set();
+
+  function openDB(){
+    if(dbPromise) return dbPromise;
+    dbPromise=new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,1);
+      req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE); };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error||new Error('IndexedDB open failed'));
+    });
+    return dbPromise;
+  }
+  async function get(key){
+    const db=await openDB();
+    return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).get(key);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+  }
+  async function put(key,value){
+    const db=await openDB();
+    return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(value,key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('IndexedDB write aborted'));});
+  }
+  async function del(key){
+    const db=await openDB();
+    return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+  }
+  function lite(state){
+    return {
+      version:state.version,updatedAt:state.updatedAt,tournament:state.tournament,timer:state.timer,
+      counts:state.counts,blinds:state.blinds,itm:state.itm,payouts:state.payouts,display:state.display,
+      settings:state.settings,history:(state.history||[]).slice(-30)
+    };
+  }
+  async function load(){
+    try{const x=await get(STATE_KEY);if(x)return x;}catch(e){}
+    try{const raw=localStorage.getItem(FALLBACK);return raw?JSON.parse(raw):null;}catch(e){return null;}
+  }
+  async function save(state,{broadcast=true}={}){
+    state.updatedAt=Date.now();
+    let mode='indexeddb';
+    try{await put(STATE_KEY,state);}catch(e){mode='memory';}
+    try{localStorage.setItem(FALLBACK,JSON.stringify(lite(state)));}catch(e){}
+    if(broadcast&&channel){try{channel.postMessage({type:'state',state});}catch(e){}}
     return mode;
   }
-  async function saveBlob(key,blob){try{await idbSet('blob:'+key,blob);return true}catch(e){return false}}
-  async function loadBlob(key){try{return await idbGet('blob:'+key)}catch(e){return null}}
-  async function delBlob(key){try{await idbDel('blob:'+key)}catch(e){} }
-  function onRemote(cb){listeners.add(cb);return()=>listeners.delete(cb)}
-  try{channel=new BroadcastChannel(CH);channel.onmessage=e=>{if(e.data&&e.data.type==='state')listeners.forEach(fn=>fn(e.data.state))}}catch(e){window.addEventListener('storage',ev=>{if(ev.key==='everest-td-state-lite'&&ev.newValue){try{const s=JSON.parse(ev.newValue);listeners.forEach(fn=>fn(s))}catch(_){}}})}
-  async function persist(){try{if(navigator.storage&&navigator.storage.persist)return await navigator.storage.persist()}catch(e){}return false}
-  async function estimate(){try{if(navigator.storage&&navigator.storage.estimate)return await navigator.storage.estimate()}catch(e){}return null}
-  window.EverestStore={load,save,saveBlob,loadBlob,delBlob,onRemote,persist,estimate};
+  async function saveBlob(key,blob){
+    try{await put('blob:'+key,blob);if(channel)channel.postMessage({type:'media',key});return true;}catch(e){return false;}
+  }
+  async function loadBlob(key){try{return await get('blob:'+key)||null;}catch(e){return null;}}
+  async function deleteBlob(key){try{await del('blob:'+key);if(channel)channel.postMessage({type:'media',key});return true;}catch(e){return false;}}
+  function onRemote(fn){stateListeners.add(fn);return()=>stateListeners.delete(fn);}
+  function onMedia(fn){mediaListeners.add(fn);return()=>mediaListeners.delete(fn);}
+  try{
+    channel=new BroadcastChannel(CHANNEL);
+    channel.onmessage=e=>{
+      if(!e.data)return;
+      if(e.data.type==='state'&&e.data.state)stateListeners.forEach(fn=>fn(e.data.state));
+      if(e.data.type==='media')mediaListeners.forEach(fn=>fn(e.data.key));
+    };
+  }catch(e){
+    window.addEventListener('storage',event=>{
+      if(event.key===FALLBACK&&event.newValue){try{const s=JSON.parse(event.newValue);stateListeners.forEach(fn=>fn(s));}catch(_){} }
+    });
+  }
+  async function estimate(){try{return navigator.storage&&navigator.storage.estimate?await navigator.storage.estimate():null;}catch(e){return null;}}
+  async function persist(){try{return navigator.storage&&navigator.storage.persist?await navigator.storage.persist():false;}catch(e){return false;}}
+  window.EverestStore={load,save,saveBlob,loadBlob,deleteBlob,onRemote,onMedia,estimate,persist};
 })();

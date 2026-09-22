@@ -1,1 +1,71 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TV Display · Everest Tournament Director</title><link rel="stylesheet" href="../assets/css/app.css"></head><body class="display-body"><main id="displayRoot" class="display"><header class="display-header"><div><div class="display-brand">EVEREST POKER ROOM</div><div id="dTitle" class="display-title">MAIN EVENT</div></div><div id="dState" class="display-status">PAUSED</div></header><div class="display-main"><section class="display-clock"><div id="dLevel" class="display-level">LEVEL 1</div><div id="dTimer" class="display-timer">20:00</div><div id="dBlinds" class="display-blinds">100 / 200 / 200</div><div id="dNext" class="display-next">Next: 100 / 300 / 300</div></section><aside class="display-side"><section id="playersPanel" class="display-panel"><h3>Players / Entries</h3><div class="display-metric"><span>Remaining</span><strong id="dRemaining">0</strong></div><div class="display-metric"><span>Entries</span><strong id="dEntries">0</strong></div><div class="display-metric"><span>Average Stack</span><strong id="dAvg">0</strong></div></section><section id="prizePanel" class="display-panel"><h3>Prize Pool</h3><div class="display-metric"><span>Total</span><strong id="dPrize" class="gold">₱0</strong></div><div class="display-metric"><span>ITM</span><strong id="dItm">0</strong></div></section><section id="payoutPanel" class="display-panel"><h3>Payouts</h3><div id="dPayouts" class="payout-list"></div></section></aside></div><footer class="display-footer"><div id="dAnnouncement" class="display-announcement"></div><div id="dFooter" class="display-status">Everest Tournament Director</div></footer></main><script src="../assets/js/storage.js"></script><script src="../assets/js/display.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Everest Tournament Director · TV</title>
+  <link rel="stylesheet" href="../assets/css/app.css" />
+</head>
+<body class="tv-body">
+  <main id="tvRoot" class="tv-root">
+    <div id="tvBackdrop" class="tv-backdrop"></div>
+    <header class="tv-header">
+      <div class="tv-brand-wrap">
+        <div id="tvLogoBox" class="tv-logo-box hidden"><img id="tvLogo" alt="Logo" /></div>
+        <div>
+          <div id="tvSubtitle" class="tv-kicker">EVEREST POKER ROOM</div>
+          <div id="tvTitle" class="tv-title">MAIN EVENT</div>
+        </div>
+      </div>
+      <div class="tv-header-right">
+        <div id="tvState" class="tv-state paused">PAUSED</div>
+        <div id="tvPage" class="tv-page"></div>
+      </div>
+    </header>
+
+    <section class="tv-grid">
+      <aside id="tvLeft" class="tv-column tv-left">
+        <section class="tv-card">
+          <div class="tv-card-title">PLAYERS</div>
+          <div class="tv-metric"><span>Remaining</span><strong id="tvRemaining">0</strong></div>
+          <div class="tv-metric"><span>Total Entries</span><strong id="tvEntries">0</strong></div>
+          <div class="tv-metric"><span>Re-entries</span><strong id="tvReentries">0</strong></div>
+        </section>
+        <section class="tv-card">
+          <div class="tv-card-title">CHIPS</div>
+          <div class="tv-metric"><span>Chips in Play</span><strong id="tvChips">0</strong></div>
+          <div class="tv-metric"><span>Average Stack</span><strong id="tvAverage">0</strong></div>
+          <div class="tv-metric"><span>ITM</span><strong id="tvITM">0</strong></div>
+        </section>
+      </aside>
+
+      <section class="tv-center">
+        <div id="tvLevel" class="tv-level">LEVEL 1</div>
+        <div class="tv-blinds-label">BLINDS / ANTE</div>
+        <div id="tvBlinds" class="tv-blinds">100 / 200 / 200</div>
+        <div id="tvTimer" class="tv-timer">20:00</div>
+        <div class="tv-next-row"><span>NEXT</span><strong id="tvNext">100 / 300 / 300</strong></div>
+        <div id="tvLateRegWrap" class="tv-late-reg"><span>LATE REG</span><strong id="tvLateReg">OPEN</strong></div>
+        <div id="tvAnnouncement" class="tv-announcement hidden"></div>
+      </section>
+
+      <aside id="tvRight" class="tv-column tv-right">
+        <section class="tv-card payout-card">
+          <div class="tv-card-title">PAYOUTS</div>
+          <div id="tvPayouts" class="tv-payouts"></div>
+        </section>
+      </aside>
+    </section>
+
+    <footer class="tv-footer">
+      <section id="tvPrizeWrap" class="tv-prize-wrap">
+        <div class="tv-prize-label">PRIZE POOL</div>
+        <div id="tvPrize" class="tv-prize">₱0</div>
+      </section>
+      <div id="tvFooter" class="tv-footer-text">Everest Poker Room · Midori Casino 2F</div>
+    </footer>
+  </main>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/display.js"></script>
+</body>
+</html>
