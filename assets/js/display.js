@@ -16,10 +16,18 @@
   function money(n){return `${state.tournament.currency||'₱'}${fmt(n)}`;}
   function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
   function ordinal(n){const v=n%100;if(v>=11&&v<=13)return n+'TH';return n+({1:'ST',2:'ND',3:'RD'}[n%10]||'TH');}
+  function payoutPrize(p){
+    if(p&&Object.prototype.hasOwnProperty.call(p,'prize'))return String(p.prize??'');
+    const place=Math.max(1,Number(p?.place)||1),label=String(p?.label??'').trim(),amount=number(p?.amount),defaultLabel=ordinal(place);
+    let prize=label&&label.toUpperCase()!==defaultLabel.toUpperCase()?label:'';
+    if(amount)prize=prize?`${prize} · ${money(amount)}`:money(amount);
+    return prize;
+  }
 
   function renderPayouts(){
     const rows=(state.payouts||[]).slice().sort((a,b)=>(Number(a.place)||0)-(Number(b.place)||0));const pages=Math.max(1,Math.ceil(Math.max(rows.length,10)/10));if(page>=pages)page=0;const chunk=rows.slice(page*10,page*10+10);const filled=Array.from({length:10},(_,i)=>chunk[i]||null);
-    $('#tvPayouts').innerHTML=filled.map((r,i)=>r?`<div class="tv-payout-row"><div class="tv-payout-place">${escapeHtml(r.place||page*10+i+1)}</div><div class="tv-payout-label">${escapeHtml(r.label||ordinal(Number(r.place)||page*10+i+1))}</div><div class="tv-payout-amount">${money(r.amount)}</div></div>`:`<div class="tv-payout-row tv-payout-empty"><div class="tv-payout-place">${page*10+i+1}</div><div class="tv-payout-label">—</div><div class="tv-payout-amount">—</div></div>`).join('');
+    const paid=paidPlaces(),remaining=number(state.counts.remaining),inTheMoney=paid>0&&remaining>0&&remaining<=paid;
+    $('#tvPayouts').innerHTML=filled.map((r,i)=>{const place=Number(r?.place)||page*10+i+1,prize=payoutPrize(r),eliminated=inTheMoney&&place>remaining&&place<=paid;return r?`<div class="tv-payout-row${eliminated?' tv-payout-eliminated':''}"><div class="tv-payout-place">${escapeHtml(place)}</div><div class="tv-payout-prize">${escapeHtml(prize||'—')}</div></div>`:`<div class="tv-payout-row tv-payout-empty"><div class="tv-payout-place">${page*10+i+1}</div><div class="tv-payout-prize">—</div></div>`;}).join('');
     $('#tvPage').textContent=pages>1?`PAYOUT ${page+1} / ${pages}`:'';
   }
   function render(){
