@@ -20,7 +20,7 @@
     {type:'level',name:'Level 11',minutes:20,sb:2000,bb:4000,ante:4000},
     {type:'level',name:'Level 12',minutes:20,sb:3000,bb:6000,ante:6000}
   ];
-  const defaultPayouts=Array.from({length:10},(_,i)=>({place:i+1,label:ordinal(i+1),amount:0}));
+  const defaultPayouts=Array.from({length:10},(_,i)=>({place:i+1,prize:''}));
   const defaults={
     version:3,
     tournament:{name:'MAIN EVENT',subtitle:'',currency:'₱',guarantee:0,lateRegCloseIndex:null,buy:{chips:20000,prize:1000,fee:0},re:{same:true,chips:20000,prize:1000,fee:0},add:{disabled:false,chips:20000,prize:0,fee:0}},
@@ -32,7 +32,7 @@
     display:{title:'',subtitle:'EVEREST POKER ROOM',footer:'Everest Poker Room · Midori Casino 2F',announcement:'',showPlayers:true,showPrize:true,showPayout:true,showLateReg:true},
     settings:{countdown:true,bell:true,locked:false},history:[]
   };
-  let state=deep(defaults), advancing=false, toastTimer=null;
+  let state=deep(defaults), advancing=false, toastTimer=null, lastCountdownTick=null;
 
   function ordinal(n){const v=n%100;if(v>=11&&v<=13)return n+'TH';return n+({1:'ST',2:'ND',3:'RD'}[n%10]||'TH');}
   function merge(a,b){if(!b||typeof b!=='object')return a;for(const k of Object.keys(b)){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))merge(a[k],b[k]);else a[k]=b[k];}return a;}
@@ -40,7 +40,16 @@
     state=merge(deep(defaults),state||{});state.version=3;
     if(!Array.isArray(state.blinds)||!state.blinds.length)state.blinds=deep(defaultBlinds);
     if(!Array.isArray(state.payouts))state.payouts=deep(defaultPayouts);
-    while(state.payouts.length<10)state.payouts.push({place:state.payouts.length+1,label:ordinal(state.payouts.length+1),amount:0});
+    state.payouts=state.payouts.map((p,i)=>{
+      if(p&&Object.prototype.hasOwnProperty.call(p,'prize'))return {place:Math.max(1,Math.floor(number(p.place)||i+1)),prize:String(p.prize??'')};
+      const place=Math.max(1,Math.floor(number(p?.place)||i+1));
+      const label=String(p?.label??'').trim();const amount=number(p?.amount);const defaultLabel=ordinal(place);
+      let prize='';
+      if(label&&label.toUpperCase()!==defaultLabel.toUpperCase())prize=label;
+      if(amount)prize=prize?`${prize} · ${money(amount)}`:money(amount);
+      return {place,prize};
+    });
+    while(state.payouts.length<10)state.payouts.push({place:state.payouts.length+1,prize:''});
     state.timer.index=Math.max(0,Math.min(state.blinds.length-1,Number(state.timer.index)||0));
     state.timer.remaining=number(state.timer.remaining);
     state.timer.countdownPlayed=!!state.timer.countdownPlayed;
@@ -131,14 +140,20 @@
     $('#itmPercent').value=String(state.itm.percent??10);$('#itmCustom').value=number(state.itm.customPercent);$('#itmRound').value=state.itm.round||'up';$('#itmPaidCustom').value=number(state.itm.customPaid);
     $('#itmCustom').disabled=$('#itmPercent').value!=='custom';$('#customPaidWrap').style.display=$('#itmRound').value==='custom'?'flex':'none';renderPayoutStats();
   }
+  function payoutCashValue(text){
+    const raw=String(text??'').trim();
+    if(!raw)return 0;
+    const cleaned=raw.replace(/^[₱$€£¥]\s*/,'').replace(/,/g,'').trim();
+    return /^\d+(?:\.\d+)?$/.test(cleaned)?number(cleaned):0;
+  }
   function renderPayoutRows(){
-    $('#payoutRows').innerHTML=state.payouts.map((p,i)=>`<tr data-index="${i}"><td><input class="p-place" type="number" min="1" value="${Math.max(1,Number(p.place)||i+1)}" /></td><td><input class="p-label" value="${escapeAttr(p.label||ordinal(i+1))}" /></td><td><input class="p-amount" type="number" min="0" value="${number(p.amount)}" /></td><td><button class="row-remove" data-remove-payout="${i}">Remove</button></td></tr>`).join('');
+    $('#payoutRows').innerHTML=state.payouts.map((p,i)=>`<tr data-index="${i}"><td><input class="p-place" type="number" min="1" value="${Math.max(1,Number(p.place)||i+1)}" /></td><td><input class="p-prize" type="text" value="${escapeAttr(p.prize||'')}" placeholder="e.g. ₱5,000 / iPhone 17 Pro / Tournament Ticket" /></td><td><button class="row-remove" data-remove-payout="${i}">Remove</button></td></tr>`).join('');
     $$('[data-remove-payout]').forEach(b=>b.onclick=()=>{state.payouts.splice(Number(b.dataset.removePayout),1);renderPayoutRows();renderPayoutStats();});
     $$('#payoutRows input').forEach(x=>x.addEventListener('input',renderPayoutStats));
   }
-  function readPayoutRows(){state.payouts=$$('#payoutRows tr').map((tr,i)=>({place:Math.max(1,Math.floor(number(tr.querySelector('.p-place').value)||i+1)),label:tr.querySelector('.p-label').value.trim()||ordinal(i+1),amount:number(tr.querySelector('.p-amount').value)}));}
+  function readPayoutRows(){state.payouts=$$('#payoutRows tr').map((tr,i)=>({place:Math.max(1,Math.floor(number(tr.querySelector('.p-place').value)||i+1)),prize:tr.querySelector('.p-prize').value.trim()}));}
   function renderPayoutStats(){
-    const t=totals();let allocated=0;$$('#payoutRows .p-amount').forEach(x=>allocated+=number(x.value));if(!$('#payoutRows').children.length)allocated=(state.payouts||[]).reduce((s,p)=>s+number(p.amount),0);
+    const t=totals();let allocated=0;$$('#payoutRows .p-prize').forEach(x=>allocated+=payoutCashValue(x.value));if(!$('#payoutRows').children.length)allocated=(state.payouts||[]).reduce((sum,p)=>sum+payoutCashValue(p.prize),0);
     $('#payPrize').textContent=money(t.prize);$('#payItm').textContent=paidPlaces();$('#payAllocated').textContent=money(allocated);const un=t.prize-allocated;$('#payUnallocated').textContent=(un<0?'-':'')+money(Math.abs(un));$('#payUnallocated').style.color=un<0?'#ff9ca3':'';
   }
   async function renderDisplaySettings(){
@@ -152,10 +167,10 @@
   async function renderAll(){renderDashboard();renderTournament();renderBlindRows();renderPayoutRows();renderITM();await renderDisplaySettings();renderSound();renderStorage();}
 
   function moveStage(index,keepRunning=true){
-    index=Math.max(0,Math.min(state.blinds.length-1,index));const previousIndex=state.timer.index;const countdownPlayed=state.timer.countdownPlayed;EverestAudio.stopCountdown();state.timer.index=index;state.timer.remaining=number(current().minutes)*60;state.timer.countdownPlayed=index===previousIndex?countdownPlayed:false;if(keepRunning&&state.timer.running)state.timer.endAt=Date.now()+state.timer.remaining*1000;else state.timer.endAt=null;renderDashboard();saveState();
+    index=Math.max(0,Math.min(state.blinds.length-1,index));const previousIndex=state.timer.index;const countdownPlayed=state.timer.countdownPlayed;EverestAudio.stopCountdown();lastCountdownTick=null;state.timer.index=index;state.timer.remaining=number(current().minutes)*60;state.timer.countdownPlayed=index===previousIndex?countdownPlayed:false;if(keepRunning&&state.timer.running)state.timer.endAt=Date.now()+state.timer.remaining*1000;else state.timer.endAt=null;renderDashboard();saveState();
   }
   async function autoAdvance(){
-    if(advancing)return;advancing=true;EverestAudio.stopCountdown();if(state.settings.bell!==false)EverestAudio.playBell();
+    if(advancing)return;advancing=true;EverestAudio.stopCountdown();lastCountdownTick=null;if(state.settings.bell!==false)EverestAudio.playBell();
     if(state.timer.index<state.blinds.length-1){state.timer.index++;state.timer.remaining=number(current().minutes)*60;state.timer.countdownPlayed=false;state.timer.running=true;state.timer.endAt=Date.now()+state.timer.remaining*1000;}else{state.timer.running=false;state.timer.remaining=0;state.timer.endAt=null;}
     renderDashboard();await saveState();advancing=false;
   }
@@ -171,8 +186,8 @@
     renderDashboard();renderPayoutStats();saveState();
   }
   function playerOut(){if(locked())return;if(state.counts.remaining<=0)return toast('No remaining player to mark out.','warn');pushHistory('Player Out');state.counts.remaining--;renderDashboard();renderPayoutStats();saveState();}
-  function undo(){const h=state.history.pop();if(!h)return toast('Nothing to undo.','warn');state.counts=deep(h.snapshot.counts);state.timer=deep(h.snapshot.timer);EverestAudio.stopCountdown();renderDashboard();renderPayoutStats();saveState(`Undid: ${h.label}`);}
-  function setTimerFromPrompt(){if(locked())return;const raw=prompt('Set remaining time (MM:SS or seconds):',timeShort(secondsNow()));if(raw===null)return;let seconds=0;if(String(raw).includes(':')){const parts=String(raw).split(':').map(Number);if(parts.some(Number.isNaN))return toast('Invalid time.','warn');seconds=parts.reduce((acc,n)=>acc*60+n,0);}else seconds=Number(raw);if(!Number.isFinite(seconds)||seconds<0)return toast('Invalid time.','warn');pushHistory('Set Time');state.timer.remaining=Math.floor(seconds);if(state.timer.running)state.timer.endAt=Date.now()+state.timer.remaining*1000;EverestAudio.stopCountdown();renderDashboard();saveState();}
+  function undo(){const h=state.history.pop();if(!h)return toast('Nothing to undo.','warn');state.counts=deep(h.snapshot.counts);state.timer=deep(h.snapshot.timer);EverestAudio.stopCountdown();lastCountdownTick=null;renderDashboard();renderPayoutStats();saveState(`Undid: ${h.label}`);}
+  function setTimerFromPrompt(){if(locked())return;const raw=prompt('Set remaining time (MM:SS or seconds):',timeShort(secondsNow()));if(raw===null)return;let seconds=0;if(String(raw).includes(':')){const parts=String(raw).split(':').map(Number);if(parts.some(Number.isNaN))return toast('Invalid time.','warn');seconds=parts.reduce((acc,n)=>acc*60+n,0);}else seconds=Number(raw);if(!Number.isFinite(seconds)||seconds<0)return toast('Invalid time.','warn');pushHistory('Set Time');state.timer.remaining=Math.floor(seconds);if(state.timer.running)state.timer.endAt=Date.now()+state.timer.remaining*1000;EverestAudio.stopCountdown();lastCountdownTick=null;renderDashboard();saveState();}
   function goToStage(){if(locked())return;const raw=prompt(`Go to stage number (1-${state.blinds.length}):`,String(state.timer.index+1));if(raw===null)return;const n=Math.floor(Number(raw));if(!Number.isFinite(n)||n<1||n>state.blinds.length)return toast('Invalid stage number.','warn');pushHistory('Go to Level');moveStage(n-1,true);}
   function startNextBreak(){if(locked())return;const i=state.blinds.findIndex((b,idx)=>idx>state.timer.index&&b.type==='break');if(i<0)return toast('No later break found in the blind structure.','warn');pushHistory('Start Break');moveStage(i,true);}
 
@@ -180,12 +195,12 @@
   function wire(){
     wireNavigation();
     $('#soundUnlock').onclick=async()=>{const ok=await EverestAudio.unlock();$('#soundUnlock').textContent=ok?'Sound Enabled ✓':'Enable Sound';toast(ok?'Sound enabled.':'Browser blocked audio. Click again. ',ok?'':'warn');};
-    $('#startPause').onclick=()=>{if(locked())return;pushHistory('Start / Pause');if(state.timer.running){state.timer.remaining=secondsNow();state.timer.running=false;state.timer.endAt=null;EverestAudio.stopCountdown();}else{if(secondsNow()<=0)state.timer.remaining=number(current().minutes)*60;state.timer.running=true;state.timer.endAt=Date.now()+state.timer.remaining*1000;}renderDashboard();saveState();};
+    $('#startPause').onclick=()=>{if(locked())return;pushHistory('Start / Pause');if(state.timer.running){state.timer.remaining=secondsNow();state.timer.running=false;state.timer.endAt=null;EverestAudio.stopCountdown();lastCountdownTick=null;}else{if(secondsNow()<=0)state.timer.remaining=number(current().minutes)*60;state.timer.running=true;state.timer.endAt=Date.now()+state.timer.remaining*1000;lastCountdownTick=null;}renderDashboard();saveState();};
     $('#nextLevel').onclick=()=>{if(locked())return;pushHistory('Next Level');moveStage(state.timer.index+1,true);};
     $('#prevLevel').onclick=()=>{if(locked())return;pushHistory('Previous Level');moveStage(state.timer.index-1,true);};
-    $('#resetLevel').onclick=()=>{if(locked())return;pushHistory('Reset Level');EverestAudio.stopCountdown();state.timer.running=false;state.timer.endAt=null;state.timer.remaining=number(current().minutes)*60;renderDashboard();saveState();};
+    $('#resetLevel').onclick=()=>{if(locked())return;pushHistory('Reset Level');EverestAudio.stopCountdown();lastCountdownTick=null;state.timer.running=false;state.timer.endAt=null;state.timer.remaining=number(current().minutes)*60;renderDashboard();saveState();};
     $('#setTime').onclick=setTimerFromPrompt;$('#goToLevel').onclick=goToStage;$('#startBreak').onclick=startNextBreak;
-    $$('[data-adjust]').forEach(b=>b.onclick=()=>{if(locked())return;pushHistory('Adjust Time');const next=Math.max(0,secondsNow()+Number(b.dataset.adjust));state.timer.remaining=next;if(state.timer.running)state.timer.endAt=Date.now()+next*1000;renderDashboard();saveState();});
+    $$('[data-adjust]').forEach(b=>b.onclick=()=>{if(locked())return;pushHistory('Adjust Time');const next=Math.max(0,secondsNow()+Number(b.dataset.adjust));state.timer.remaining=next;if(state.timer.running)state.timer.endAt=Date.now()+next*1000;EverestAudio.stopCountdown();lastCountdownTick=null;renderDashboard();saveState();});
     $$('[data-count]').forEach(b=>b.onclick=()=>changeCount(b.dataset.count,Number(b.dataset.delta)));
     $('#buyinBtn').onclick=()=>changeCount('buyins',1);$('#reentryBtn').onclick=()=>changeCount('reentries',1);$('#addonBtn').onclick=()=>changeCount('addons',1);$('#playerOutBtn').onclick=playerOut;$('#undoBtn').onclick=undo;$('#lockBtn').onclick=()=>{state.settings.locked=!state.settings.locked;renderDashboard();saveState();};
     $('#announceBtn').onclick=()=>{state.display.announcement=$('#announceInput').value.trim();saveState('Announcement updated.');};$('#clearAnnounce').onclick=()=>{$('#announceInput').value='';state.display.announcement='';saveState('Announcement cleared.');};
@@ -195,17 +210,17 @@
     $('#saveBlinds').onclick=()=>{const wasRunning=state.timer.running;readBlindRows();state.timer.index=Math.min(state.timer.index,state.blinds.length-1);state.timer.remaining=number(current().minutes)*60;state.timer.endAt=wasRunning?Date.now()+state.timer.remaining*1000:null;state.timer.countdownPlayed=false;renderTournament();renderDashboard();saveState('Blind structure saved.');};
     $('#blindImport').onchange=e=>importTableFile(e.target.files[0],'blinds');
     $('#itmPercent').onchange=()=>{$('#itmCustom').disabled=$('#itmPercent').value!=='custom';renderPayoutStats();};$('#itmCustom').oninput=renderPayoutStats;$('#itmRound').onchange=()=>{$('#customPaidWrap').style.display=$('#itmRound').value==='custom'?'flex':'none';renderPayoutStats();};$('#itmPaidCustom').oninput=renderPayoutStats;
-    $('#addPayoutRow').onclick=()=>{const n=state.payouts.length+1;state.payouts.push({place:n,label:ordinal(n),amount:0});renderPayoutRows();};$('#payoutImport').onchange=e=>importTableFile(e.target.files[0],'payouts');
-    $('#savePayouts').onclick=()=>{readPayoutRows();state.itm.percent=$('#itmPercent').value==='custom'?'custom':Number($('#itmPercent').value);state.itm.customPercent=number($('#itmCustom').value);state.itm.round=$('#itmRound').value;state.itm.customPaid=Math.floor(number($('#itmPaidCustom').value));const need=Math.max(10,paidPlaces());while(state.payouts.length<need){const n=state.payouts.length+1;state.payouts.push({place:n,label:ordinal(n),amount:0});}renderPayoutRows();renderDashboard();renderPayoutStats();saveState('Payout & ITM saved.');};
+    $('#addPayoutRow').onclick=()=>{const n=state.payouts.length+1;state.payouts.push({place:n,prize:''});renderPayoutRows();};$('#payoutImport').onchange=e=>importTableFile(e.target.files[0],'payouts');
+    $('#savePayouts').onclick=()=>{readPayoutRows();state.itm.percent=$('#itmPercent').value==='custom'?'custom':Number($('#itmPercent').value);state.itm.customPercent=number($('#itmCustom').value);state.itm.round=$('#itmRound').value;state.itm.customPaid=Math.floor(number($('#itmPaidCustom').value));const need=Math.max(10,paidPlaces());while(state.payouts.length<need){const n=state.payouts.length+1;state.payouts.push({place:n,prize:''});}renderPayoutRows();renderDashboard();renderPayoutStats();saveState('Payout & ITM saved.');};
     $('#saveDisplay').onclick=()=>{state.display.title=$('#displayTitle').value.trim();state.display.subtitle=$('#displaySubtitle').value.trim();state.display.footer=$('#displayFooter').value.trim();state.display.showPlayers=$('#showPlayers').checked;state.display.showPrize=$('#showPrize').checked;state.display.showPayout=$('#showPayout').checked;state.display.showLateReg=$('#showLateReg').checked;saveState('Display settings saved.');};
     $('#logoFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const ok=await EverestStore.saveBlob('logo',f);$('#logoStatus').textContent=ok?'Custom logo saved':'Logo could not be saved';toast(ok?'Logo saved.':'Could not save logo.','warn');};$('#clearLogo').onclick=async()=>{await EverestStore.deleteBlob('logo');$('#logoStatus').textContent='No custom logo';toast('Logo cleared.');};
     $('#backgroundFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const ok=await EverestStore.saveBlob('background',f);$('#backgroundStatus').textContent=ok?'Custom background saved':'Background could not be saved';toast(ok?'Background saved.':'Could not save background.','warn');};$('#clearBackground').onclick=async()=>{await EverestStore.deleteBlob('background');$('#backgroundStatus').textContent='Default background';toast('Background cleared.');};
     $('#countdownFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const ok=await EverestAudio.setFile('countdown',f);renderSound();toast(ok?'Countdown MP3 saved.':'Could not save countdown MP3.','warn');};$('#bellFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const ok=await EverestAudio.setFile('bell',f);renderSound();toast(ok?'Bell MP3 saved.':'Could not save bell MP3.','warn');};
     $('#testCountdown').onclick=async()=>{if(!EverestAudio.unlocked)await EverestAudio.unlock();EverestAudio.stopCountdown();EverestAudio.playCountdown();};$('#testBell').onclick=async()=>{if(!EverestAudio.unlocked)await EverestAudio.unlock();EverestAudio.playBell();};$('#clearCountdown').onclick=async()=>{await EverestAudio.clear('countdown');renderSound();toast('Countdown cleared.');};$('#clearBell').onclick=async()=>{await EverestAudio.clear('bell');renderSound();toast('Bell cleared.');};$('#saveSound').onclick=()=>{state.settings.countdown=$('#enableCountdown').checked;state.settings.bell=$('#enableBell').checked;saveState('Sound settings saved.');};
     $('#exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`everest-tournament-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);};
-    $('#importBackup').onclick=async()=>{const f=$('#importBackupFile').files[0];if(!f)return toast('Choose a JSON backup first.','warn');try{state=merge(deep(defaults),JSON.parse(await f.text()));sanitize();EverestAudio.stopAll();await renderAll();await saveState('Backup imported.');}catch(e){toast('Invalid backup file.','error');}};
+    $('#importBackup').onclick=async()=>{const f=$('#importBackupFile').files[0];if(!f)return toast('Choose a JSON backup first.','warn');try{state=merge(deep(defaults),JSON.parse(await f.text()));sanitize();EverestAudio.stopAll();lastCountdownTick=null;await renderAll();await saveState('Backup imported.');}catch(e){toast('Invalid backup file.','error');}};
     $('#requestPersist').onclick=async()=>toast((await EverestStore.persist())?'Persistent browser storage granted.':'Browser did not grant persistent storage.','warn');
-    $('#resetAll').onclick=()=>{if(!confirm('Reset all tournament data? Export a backup first if needed.'))return;EverestAudio.stopAll();state=deep(defaults);renderAll();saveState('Tournament data reset.');};
+    $('#resetAll').onclick=()=>{if(!confirm('Reset all tournament data? Export a backup first if needed.'))return;EverestAudio.stopAll();lastCountdownTick=null;state=deep(defaults);renderAll();saveState('Tournament data reset.');};
     EverestStore.onRemote(remote=>{state=merge(deep(defaults),remote);sanitize();renderDashboard();renderPayoutStats();});
   }
 
@@ -219,8 +234,8 @@
         const parsed=rows.map((r,i)=>{const type=String(r.Type??r.type??r.TYPE??'level').toLowerCase().includes('break')?'break':'level';return{type,name:String(r.Name??r.name??r.Level??r.level??`${type==='break'?'Break':'Level'} ${i+1}`),minutes:Math.max(1,number(r.Minutes??r.minutes??r.Min??r.min??r.Duration??r.duration??20)),sb:type==='break'?0:number(r.SB??r.sb??r.SmallBlind??r['Small Blind']),bb:type==='break'?0:number(r.BB??r.bb??r.BigBlind??r['Big Blind']),ante:type==='break'?0:number(r.Ante??r.ante)};}).filter(r=>r.name);
         if(!parsed.length)throw new Error('No blind rows');state.blinds=parsed;state.timer.index=0;state.timer.running=false;state.timer.endAt=null;state.timer.remaining=number(state.blinds[0].minutes)*60;state.timer.countdownPlayed=false;state.tournament.lateRegCloseIndex=null;renderBlindRows();renderTournament();renderDashboard();toast(`${parsed.length} blind rows imported.`);
       }else{
-        const parsed=rows.map((r,i)=>({place:Math.max(1,Math.floor(number(r.Place??r.place??r.Position??r.position??i+1))),label:String(r.Label??r.label??r.Player??r.player??ordinal(i+1)),amount:number(r.Amount??r.amount??r.Prize??r.prize)})).filter(r=>r.place);
-        if(!parsed.length)throw new Error('No payout rows');state.payouts=parsed;while(state.payouts.length<10){const n=state.payouts.length+1;state.payouts.push({place:n,label:ordinal(n),amount:0});}renderPayoutRows();renderPayoutStats();toast(`${parsed.length} payout rows imported.`);
+        const parsed=rows.map((r,i)=>{const place=Math.max(1,Math.floor(number(r.Place??r.place??r.Position??r.position??i+1)));let prize=String(r.Prize??r.prize??r.Item??r.item??r.Award??r.award??'').trim();const label=String(r.Label??r.label??'').trim();const amount=number(r.Amount??r.amount);if(!prize&&label&&!/^\d+(?:ST|ND|RD|TH)$/i.test(label))prize=label;if(!prize&&amount)prize=money(amount);else if(prize&&amount&&!payoutCashValue(prize))prize=`${prize} · ${money(amount)}`;return{place,prize};}).filter(r=>r.place);
+        if(!parsed.length)throw new Error('No payout rows');state.payouts=parsed;while(state.payouts.length<10){const n=state.payouts.length+1;state.payouts.push({place:n,prize:''});}renderPayoutRows();renderPayoutStats();toast(`${parsed.length} payout rows imported.`);
       }
     }catch(e){toast('Could not import file. Check the column headers and file format.','error');}
     finally{if(file&&kind==='blinds')$('#blindImport').value='';if(file&&kind==='payouts')$('#payoutImport').value='';}
@@ -230,8 +245,15 @@
   function escapeAttr(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
   function tick(){
-    if(!state.timer.running)return;const sec=secondsNow();state.timer.remaining=sec;$('#dashTimer').textContent=timeShort(sec);const late=lateRegInfo();$('#dashLateReg').textContent=late.open?`Late reg: ${late.text} · ${late.detail}`:'Late reg: CLOSE';
-    if(sec<=10&&sec>0&&!state.timer.countdownPlayed){state.timer.countdownPlayed=true;if(state.settings.countdown!==false)EverestAudio.playCountdown();saveState();}
+    if(!state.timer.running)return;
+    const sec=secondsNow();state.timer.remaining=sec;$('#dashTimer').textContent=timeShort(sec);const late=lateRegInfo();$('#dashLateReg').textContent=late.open?`Late reg: ${late.text} · ${late.detail}`:'Late reg: CLOSE';
+    if(sec>10)lastCountdownTick=null;
+    if(sec<=10&&sec>0&&state.settings.countdown!==false&&sec!==lastCountdownTick){
+      lastCountdownTick=sec;
+      state.timer.countdownPlayed=true;
+      EverestAudio.stopCountdown();
+      EverestAudio.playCountdown();
+    }
     if(sec<=0)autoAdvance();
   }
   async function init(){
