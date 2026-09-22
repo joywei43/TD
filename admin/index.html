@@ -193,7 +193,7 @@
             <div><span>Prize Pool</span><strong id="payPrize">₱0</strong></div><div><span>ITM</span><strong id="payItm">0</strong></div><div><span>Allocated</span><strong id="payAllocated">₱0</strong></div><div><span>Unallocated</span><strong id="payUnallocated">₱0</strong></div>
           </section>
         </div>
-        <section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Place</th><th>Label</th><th>Amount</th><th></th></tr></thead><tbody id="payoutRows"></tbody></table></div></section>
+        <section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Place</th><th>Prize / Item</th><th></th></tr></thead><tbody id="payoutRows"></tbody></table></div></section>
         <div class="section-actions"><button id="savePayouts" class="btn btn-gold">Save Payout & ITM</button></div>
       </section>
 
@@ -211,10 +211,10 @@
       <section id="tab-sound" class="tab-section">
         <div class="page-head"><div><div class="eyebrow">AUDIO</div><h1>Sound & Alerts</h1></div></div>
         <div class="settings-grid two">
-          <section class="panel"><div class="panel-head compact"><div><div class="panel-kicker">FINAL 10 SECONDS</div><h2>Countdown MP3</h2></div></div><p class="helper">Use one complete ~10 second countdown file. It plays once when the stage first enters 10 seconds and will not restart every second.</p><input id="countdownFile" type="file" accept="audio/mpeg,audio/mp3,audio/*" /><div class="button-row two top-gap"><button id="testCountdown" class="btn btn-dark">Test Countdown</button><button id="clearCountdown" class="btn btn-dark">Clear</button></div><div id="countdownStatus" class="helper top-gap"></div></section>
+          <section class="panel"><div class="panel-head compact"><div><div class="panel-kicker">FINAL 10 SECONDS</div><h2>Countdown MP3</h2></div></div><p class="helper">Countdown sounds once every second from 10 to 1. If an MP3 is uploaded, the app restarts that countdown cue on each second so every second is audible.</p><input id="countdownFile" type="file" accept="audio/mpeg,audio/mp3,audio/*" /><div class="button-row two top-gap"><button id="testCountdown" class="btn btn-dark">Test Countdown</button><button id="clearCountdown" class="btn btn-dark">Clear</button></div><div id="countdownStatus" class="helper top-gap"></div></section>
           <section class="panel"><div class="panel-head compact"><div><div class="panel-kicker">LEVEL END</div><h2>Level Bell MP3</h2></div></div><p class="helper">Use the complete bell file. If the MP3 already contains a triple bell, the app plays the file only once.</p><input id="bellFile" type="file" accept="audio/mpeg,audio/mp3,audio/*" /><div class="button-row two top-gap"><button id="testBell" class="btn btn-dark">Test Bell</button><button id="clearBell" class="btn btn-dark">Clear</button></div><div id="bellStatus" class="helper top-gap"></div></section>
         </div>
-        <section class="panel top-gap"><div class="toggle-grid"><label class="check-line"><input id="enableCountdown" type="checkbox" /> Enable 10-second countdown</label><label class="check-line"><input id="enableBell" type="checkbox" /> Enable level-end bell</label></div><p class="helper">Pause stops timer and any playing countdown audio. Resume will not replay the countdown if that stage already triggered it.</p><button id="saveSound" class="btn btn-gold">Save Sound Settings</button></section>
+        <section class="panel top-gap"><div class="toggle-grid"><label class="check-line"><input id="enableCountdown" type="checkbox" /> Enable 10-second countdown</label><label class="check-line"><input id="enableBell" type="checkbox" /> Enable level-end bell</label></div><p class="helper">Pause stops the timer and countdown audio. From 10 to 1, the countdown cue is triggered once on every second, whether you use the uploaded MP3 or the built-in fallback sound.</p><button id="saveSound" class="btn btn-gold">Save Sound Settings</button></section>
       </section>
 
       <section id="tab-backup" class="tab-section">
