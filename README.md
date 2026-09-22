@@ -1,41 +1,30 @@
-# Everest Tournament Director — GitHub Pages Edition
+# Everest Tournament Director
 
-Static tournament clock with two pages:
+Static admin + TV display for Vercel or GitHub Pages.
 
-- `admin/` — tournament control, entries, Add-on, Player Out, blinds, payouts, sound, backup.
-- `display/` — TV / projector display.
+- `admin/` — tournament setup and live controls.
+- `display/` — fullscreen TV display.
+- All internal asset links are relative, so GitHub Pages project subpaths are supported.
 
-## GitHub Pages deployment
+## Tournament logic
 
-1. Create a GitHub repository (for example `everest-tournament-director`).
-2. Upload **the contents of this folder** to the repository root.
-3. In GitHub: **Settings → Pages → Deploy from a branch → main / (root)**.
-4. Open:
-   - `https://YOURNAME.github.io/REPOSITORY/admin/`
-   - `https://YOURNAME.github.io/REPOSITORY/display/`
+- Buy-in: +1 buy-in, +1 total entry, +1 player remaining, configured chips/prize contribution/fee.
+- Re-entry: +1 re-entry, +1 total entry, +1 player remaining, with either Buy-in settings or independent settings.
+- Add-on: +1 add-on and configured chips/prize contribution/fee only. It never changes total entries or players remaining.
+- Player Out: reduces players remaining only.
+- Prize Pool and collected Fees are calculated separately.
+- ITM supports 8%, 10%, 12%, 15%, 20%, custom %, and round up/down/nearest/custom paid places.
+- Late registration can close after any Level or Break. The TV shows CLOSE only after that stage ends.
+- TV Payouts show 10 places at a time and rotate every 3 seconds after place 10.
 
-All links and assets use relative paths, so a GitHub Pages project subpath is supported. No `/assets/...` root-absolute paths are used.
+## Audio behavior
 
-## Storage safety fix
+Upload MP3 files in Admin → Sound & Alerts.
 
-Version 2 uses **IndexedDB as the main persistent store** and keeps only a tiny `localStorage` fallback. Tournament actions update UI/state before persistence, and storage errors are caught so buttons such as Add-on and Player Out do not stop working when browser storage is full/unavailable.
+- Countdown: one complete ~10 second MP3 is played once when the current Level/Break first reaches the final 10 seconds. It is not restarted every second.
+- Pausing stops countdown playback. Resuming under 10 seconds does not replay it if already triggered for that stage.
+- Level Bell: the MP3 is played once when a Level/Break actually expires. If the file itself contains a triple bell, the app does not repeat it in JavaScript.
 
-The running timer uses an `endAt` timestamp instead of writing a full snapshot every second. This dramatically reduces storage writes.
+## Storage safety
 
-Use **Backup → Download JSON Backup** regularly. You can also request persistent storage in the Backup page.
-
-## MP3 sound
-
-MP3 files are intentionally **not bundled in this ZIP**.
-
-From `admin/` → **Sound & Alerts**:
-
-- Upload a Countdown sound. It plays once per second for the final 10 seconds.
-- Upload a Level Bell. It plays as a three-hit bell on automatic/manual level changes.
-- Click **Enable Sound** once after every page load/reload because browsers block autoplay until a user gesture.
-
-Uploaded audio is stored locally in IndexedDB on that browser/device. If no file is uploaded, a synthesized fallback beep is used.
-
-## Sync behavior
-
-Admin and Display opened in the **same browser profile/device** synchronize through `BroadcastChannel`, with the persistent state used as fallback. GitHub Pages alone does not provide cross-device realtime sync; that would require a backend.
+Tournament state is stored in IndexedDB with a small localStorage fallback. Images and MP3 files are stored separately in IndexedDB. UI actions update immediately before persistence, so a storage failure does not disable Add-on or Player Out controls.
