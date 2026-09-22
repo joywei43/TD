@@ -25,12 +25,7 @@
     if(configured>0)return configured;
     return (state.payouts||[]).filter(p=>payoutPrize(p)).length;
   }
-  function formatPrize(raw){
-    const text=String(raw??'').trim();if(!text)return '—';
-    const plain=text.replace(/,/g,'').replace(/^[₱$€£¥]\s*/,'').trim();
-    if(/^\d+(?:\.\d+)?$/.test(plain))return `${state.tournament.currency||'₱'}${Number(plain).toLocaleString('en-US',{maximumFractionDigits:2})}`;
-    return text;
-  }
+  function formatPrize(raw){return String(raw??'').trim()||'—';}
   function lateReg(){const close=state.tournament.lateRegCloseIndex;if(close===null||close===''||!Number.isFinite(Number(close)))return{open:true,text:'OPEN'};const idx=Number(close);if(state.timer.index>idx)return{open:false,text:'CLOSED'};let sec=secondsNow();for(let i=state.timer.index+1;i<=idx&&i<state.blinds.length;i++)sec+=number(state.blinds[i].minutes)*60;return{open:true,text:timeLong(sec)};}
   function nextBlindStage(){for(let i=state.timer.index+1;i<state.blinds.length;i++){if(state.blinds[i]?.type!=='break')return state.blinds[i];}return null;}
   function nextBreakInfo(){
@@ -75,9 +70,19 @@
     renderPayouts();
   }
 
+  let logoUrl=null;
+  async function refreshLogo(){
+    const blob=await EverestStore.loadBlob('logo');
+    if(logoUrl)URL.revokeObjectURL(logoUrl);
+    logoUrl=blob?URL.createObjectURL(blob):null;
+    $('#tvLogo').classList.toggle('hidden',!logoUrl);
+    if(logoUrl)$('#tvLogo').src=logoUrl;else $('#tvLogo').removeAttribute('src');
+  }
   async function init(){
     const loaded=await EverestStore.load();if(loaded)state=merge(deep(defaults),loaded);
+    await refreshLogo();
     render();
+    EverestStore.onMedia(key=>{if(key==='logo')refreshLogo();});
     EverestStore.onRemote(s=>{state=merge(deep(defaults),s);page=0;render();});
     setInterval(render,250);
     setInterval(()=>{const pages=Math.max(1,Math.ceil(Math.max((state.payouts||[]).length,10)/10));if(pages>1){page=(page+1)%pages;renderPayouts();}},3000);
