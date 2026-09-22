@@ -6,64 +6,82 @@
   <title>Everest Tournament Director · TV</title>
   <link rel="stylesheet" href="../assets/css/app.css" />
 </head>
-<body class="tv-body">
-  <main id="tvRoot" class="tv-root">
+<body class="tv-body tv-classic-body">
+  <main id="tvRoot" class="tv-root tv-classic-root">
     <div id="tvBackdrop" class="tv-backdrop"></div>
-    <header class="tv-header">
-      <div class="tv-brand-wrap">
-        <div id="tvLogoBox" class="tv-logo-box hidden"><img id="tvLogo" alt="Logo" /></div>
-        <div>
-          <div id="tvSubtitle" class="tv-kicker">EVEREST POKER ROOM</div>
-          <div id="tvTitle" class="tv-title">MAIN EVENT</div>
-        </div>
-      </div>
-      <div class="tv-header-right">
-        <div id="tvState" class="tv-state paused">PAUSED</div>
-        <div id="tvPage" class="tv-page"></div>
-      </div>
+
+    <header class="classic-header">
+      <div id="tvTitle" class="classic-title">MAIN EVENT</div>
+      <div id="tvSubtitle" class="classic-subtitle">BUY-IN ₱1,000 + ₱250 FEE · RE-ENTRY UNTIL BREAK 1</div>
     </header>
 
-    <section class="tv-grid">
-      <aside id="tvLeft" class="tv-column tv-left">
-        <section class="tv-card">
-          <div class="tv-card-title">PLAYERS</div>
-          <div class="tv-metric"><span>Remaining</span><strong id="tvRemaining">0</strong></div>
-          <div class="tv-metric"><span>Total Entries</span><strong id="tvEntries">0</strong></div>
-          <div class="tv-metric"><span>Re-entries</span><strong id="tvReentries">0</strong></div>
-        </section>
-        <section class="tv-card">
-          <div class="tv-card-title">CHIPS</div>
-          <div class="tv-metric"><span>Chips in Play</span><strong id="tvChips">0</strong></div>
-          <div class="tv-metric"><span>Average Stack</span><strong id="tvAverage">0</strong></div>
-          <div class="tv-metric"><span>ITM</span><strong id="tvITM">0</strong></div>
-        </section>
+    <section class="classic-grid">
+      <aside id="tvLeft" class="classic-left classic-panel">
+        <div class="classic-stat-block">
+          <div class="classic-stat-label">PLAYERS REMAINING</div>
+          <div id="tvRemaining" class="classic-stat-value">0</div>
+        </div>
+        <div class="classic-stat-block">
+          <div class="classic-stat-label">TOTAL ENTRIES</div>
+          <div id="tvEntries" class="classic-stat-value">0</div>
+        </div>
+        <div class="classic-stat-block">
+          <div class="classic-stat-label">RE-ENTRIES / ADD-ONS</div>
+          <div class="classic-stat-value classic-stat-pair"><span id="tvReentries">0</span><span>/</span><span id="tvAddons">0</span></div>
+        </div>
+        <div class="classic-stat-block">
+          <div class="classic-stat-label">CHIPS IN PLAY</div>
+          <div id="tvChips" class="classic-stat-value">0</div>
+        </div>
+        <div class="classic-stat-block">
+          <div class="classic-stat-label">AVERAGE STACK</div>
+          <div id="tvAverage" class="classic-stat-value">0</div>
+        </div>
+        <div class="classic-stat-block classic-stat-last">
+          <div class="classic-stat-label">ITM</div>
+          <div class="classic-itm"><span id="tvITM">0</span> <span>Paid</span></div>
+        </div>
       </aside>
 
-      <section class="tv-center">
-        <div id="tvLevel" class="tv-level">LEVEL 1</div>
-        <div class="tv-blinds-label">BLINDS / ANTE</div>
-        <div id="tvBlinds" class="tv-blinds">100 / 200 / 200</div>
-        <div id="tvTimer" class="tv-timer">20:00</div>
-        <div class="tv-next-row"><span>NEXT</span><strong id="tvNext">100 / 300 / 300</strong></div>
-        <div id="tvLateRegWrap" class="tv-late-reg"><span>LATE REG</span><strong id="tvLateReg">OPEN</strong></div>
-        <div id="tvAnnouncement" class="tv-announcement hidden"></div>
+      <section class="classic-center classic-panel">
+        <div id="tvLevel" class="classic-level">LEVEL 1</div>
+        <div id="tvBlinds" class="classic-blinds">100 / 200</div>
+        <div id="tvAnte" class="classic-ante">BB ANTE 200</div>
+        <div id="tvTimer" class="classic-timer">20:00</div>
+
+        <div class="classic-next-area">
+          <div class="classic-rule"></div>
+          <div class="classic-next-label">NEXT BLINDS</div>
+          <div id="tvNext" class="classic-next-value">100 / 300 / 300</div>
+        </div>
+
+        <div class="classic-lower-row">
+          <div class="classic-lower-cell">
+            <div class="classic-lower-label">NEXT BREAK IN</div>
+            <div id="tvNextBreak" class="classic-lower-value">—</div>
+          </div>
+          <div id="tvLateRegWrap" class="classic-lower-cell classic-late-reg">
+            <div class="classic-lower-label">LATE REG</div>
+            <div id="tvLateReg" class="classic-lower-value">OPEN</div>
+          </div>
+        </div>
+
+        <div id="tvAnnouncement" class="classic-announcement hidden"></div>
+        <div id="tvFooter" class="classic-footer-note">BOOST YOUR CHIPS, CONTACT STAFF</div>
       </section>
 
-      <aside id="tvRight" class="tv-column tv-right">
-        <section class="tv-card payout-card">
-          <div class="tv-card-title">PAYOUTS</div>
-          <div id="tvPayouts" class="tv-payouts"></div>
-        </section>
+      <aside id="tvRight" class="classic-right classic-panel">
+        <div class="classic-payout-head">
+          <div class="classic-payout-title">PAYOUTS</div>
+          <div id="tvPage" class="classic-payout-page">1 / 1</div>
+        </div>
+        <div id="tvPayouts" class="classic-payouts"></div>
+        <div id="tvPrizeWrap" class="classic-prize-wrap">
+          <div class="classic-prize-label">PRIZE POOL</div>
+          <div id="tvPrize" class="classic-prize">₱0</div>
+        </div>
       </aside>
     </section>
-
-    <footer class="tv-footer">
-      <section id="tvPrizeWrap" class="tv-prize-wrap">
-        <div class="tv-prize-label">PRIZE POOL</div>
-        <div id="tvPrize" class="tv-prize">₱0</div>
-      </section>
-      <div id="tvFooter" class="tv-footer-text">Everest Poker Room · Midori Casino 2F</div>
-    </footer>
   </main>
   <script src="../assets/js/storage.js"></script>
   <script src="../assets/js/display.js"></script>
